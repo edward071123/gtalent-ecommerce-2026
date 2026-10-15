@@ -16,8 +16,8 @@ public class PageController {
     public String EdPage() {
         return "edward";
     }
-    @GetMapping("/Peter")
+    @GetMapping("/peter")
     public String PeterPage() {
-        return "Peter";
+        return "peter";
     }
 }
