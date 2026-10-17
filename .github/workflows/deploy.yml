@@ -1,6 +1,10 @@
 name: Test and deploy gtalent_ecommerce_2026 to AWS EC2
 
 on:
+  pull_request:
+    branches:
+      - release
+      - main
   push:
     branches:
       - main
@@ -9,18 +13,11 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: gtalent_ecommerce_2026-production-deploy
-  cancel-in-progress: false
-
 jobs:
-  deploy:
-    name: Build, test and deploy
+  test:
+    name: Build and test
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    environment:
-      name: production
-      url: https://gta-2026.edwardforce.tw
+    timeout-minutes: 15
 
     services:
       mysql:
@@ -67,9 +64,46 @@ jobs:
           ./mvnw --batch-mode --no-transfer-progress clean package
 
       - name: Prepare deployment artifact
+        if: >-
+          github.ref == 'refs/heads/main' &&
+          (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         run: |
           cp target/gtalent_ecommerce_2026-0.0.1-SNAPSHOT.jar target/app.jar
           test -s target/app.jar
+
+      - name: Upload deployment artifact
+        if: >-
+          github.ref == 'refs/heads/main' &&
+          (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-jar
+          path: target/app.jar
+          if-no-files-found: error
+          retention-days: 1
+
+  deploy:
+    name: Deploy production
+    needs:
+      - test
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: gtalent_ecommerce_2026-production-deploy
+      cancel-in-progress: false
+    environment:
+      name: production
+      url: https://gta-2026.edwardforce.tw
+
+    steps:
+      - name: Download deployment artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: production-jar
+          path: target
 
       - name: Configure SSH
         env:
