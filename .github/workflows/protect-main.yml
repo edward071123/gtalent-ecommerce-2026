@@ -1,0 +1,34 @@
+name: Protect main
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  only-release:
+    name: Only release can merge to main
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+
+    steps:
+      - name: Verify source branch and repository
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPOSITORY: ${{ github.repository }}
+        run: |
+          if test "$HEAD_REF" != "release"; then
+            echo "Only the release branch can be merged into main."
+            exit 1
+          fi
+
+          if test "$HEAD_REPOSITORY" != "$BASE_REPOSITORY"; then
+            echo "The release branch must belong to the upstream repository."
+            exit 1
+          fi
+
+          echo "Validated: upstream release can be merged into main."
